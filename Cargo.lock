@@ -30,6 +30,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "blockguard-chain"
+version = "0.1.0"
+dependencies = [
+ "blockguard-consensus",
+ "blockguard-core",
+ "blockguard-crypto",
+ "blockguard-state",
+]
+
+[[package]]
+name = "blockguard-consensus"
+version = "0.1.0"
+dependencies = [
+ "blockguard-core",
+ "blockguard-crypto",
+]
+
+[[package]]
 name = "blockguard-core"
 version = "0.1.0"
 

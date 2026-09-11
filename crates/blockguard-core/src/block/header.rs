@@ -1,4 +1,6 @@
-use crate::types::{BlockHash, BlockHeight, BlockTimestamp, BlockVersion, ChainId, MerkleRoot};
+use crate::types::{
+    BlockHash, BlockHeight, BlockTimestamp, BlockVersion, ChainId, MerkleRoot, PowNonce,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BlockHeader {
@@ -8,6 +10,7 @@ pub struct BlockHeader {
     previous_block_hash: BlockHash,
     transaction_root: MerkleRoot,
     timestamp: BlockTimestamp,
+    pow_nonce: PowNonce,
 }
 
 impl BlockHeader {
@@ -18,6 +21,7 @@ impl BlockHeader {
         previous_block_hash: BlockHash,
         transaction_root: MerkleRoot,
         timestamp: BlockTimestamp,
+        pow_nonce: PowNonce,
     ) -> Self {
         Self {
             version,
@@ -26,6 +30,7 @@ impl BlockHeader {
             previous_block_hash,
             transaction_root,
             timestamp,
+            pow_nonce,
         }
     }
 
@@ -51,5 +56,13 @@ impl BlockHeader {
 
     pub const fn timestamp(&self) -> BlockTimestamp {
         self.timestamp
+    }
+
+    pub const fn pow_nonce(&self) -> PowNonce {
+        self.pow_nonce
+    }
+
+    pub fn set_pow_nonce(&mut self, pow_nonce: PowNonce) {
+        self.pow_nonce = pow_nonce
     }
 }

@@ -1,0 +1,8 @@
+[package]
+name = "blockguard-consensus"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+blockguard-core.workspace = true
+blockguard-crypto.workspace = true

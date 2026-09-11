@@ -1,0 +1,10 @@
+[package]
+name = "blockguard-chain"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+blockguard-core.workspace = true
+blockguard-crypto.workspace = true
+blockguard-state.workspace = true
+blockguard-consensus.workspace = true
