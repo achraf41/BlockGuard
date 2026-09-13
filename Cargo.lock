@@ -61,11 +61,46 @@ dependencies = [
 ]
 
 [[package]]
+name = "blockguard-mempool"
+version = "0.1.0"
+dependencies = [
+ "blockguard-core",
+ "blockguard-crypto",
+ "blockguard-state",
+ "k256",
+]
+
+[[package]]
+name = "blockguard-node"
+version = "0.1.0"
+dependencies = [
+ "blockguard-chain",
+ "blockguard-consensus",
+ "blockguard-core",
+ "blockguard-crypto",
+ "blockguard-mempool",
+ "blockguard-state",
+ "blockguard-storage",
+ "k256",
+]
+
+[[package]]
 name = "blockguard-state"
 version = "0.1.0"
 dependencies = [
  "blockguard-core",
  "blockguard-crypto",
+]
+
+[[package]]
+name = "blockguard-storage"
+version = "0.1.0"
+dependencies = [
+ "blockguard-chain",
+ "blockguard-consensus",
+ "blockguard-core",
+ "blockguard-crypto",
+ "blockguard-state",
 ]
 
 [[package]]

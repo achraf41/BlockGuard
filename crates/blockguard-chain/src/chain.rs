@@ -1,22 +1,44 @@
+use std::collections::HashMap;
+
 use blockguard_core::{
     Block, BlockHash, BlockHeight, BlockVersion, ChainId, PowTarget, TransactionVersion,
 };
 
 use blockguard_crypto::{block_hash, merkle_root};
 
-use crate::ChainError;
+use crate::{
+    BlockMetadata, ChainError, ChainWork, GenesisConfig, candidate_is_better, next_chain_work,
+};
 use blockguard_consensus::validate_pow;
 use blockguard_state::State;
+
+#[derive(Debug, Clone)]
+struct IndexedBlock {
+    block: Block,
+    metadata: BlockMetadata,
+    state: State,
+}
 
 #[derive(Debug, Clone)]
 pub struct Blockchain {
     chain_id: ChainId,
     pow_target: PowTarget,
     blocks: Vec<Block>,
+    block_index: HashMap<BlockHash, IndexedBlock>,
+    canonical_tip: BlockHash,
     state: State,
 }
 
 impl Blockchain {
+    pub fn from_genesis_config(config: &GenesisConfig) -> Result<Self, ChainError> {
+        Self::new(
+            config.chain_id(),
+            config.pow_target(),
+            config.genesis_block(),
+            config.initial_state(),
+        )
+    }
+
     pub fn new(
         chain_id: ChainId,
         pow_target: PowTarget,
@@ -48,10 +70,30 @@ impl Blockchain {
             return Err(ChainError::InvalidMerkleRoot);
         }
 
+        if genesis.header().state_root() != initia_state.state_root() {
+            return Err(ChainError::InvalidStateRoot);
+        }
+
+        let genesis_hash = block_hash(genesis.header());
+        let genesis_metadata =
+            BlockMetadata::new(BlockHash::ZERO, BlockHeight::ZERO, ChainWork::ZERO);
+        let mut block_index = HashMap::new();
+
+        block_index.insert(
+            genesis_hash,
+            IndexedBlock {
+                block: genesis.clone(),
+                metadata: genesis_metadata,
+                state: initia_state.clone(),
+            },
+        );
+
         Ok(Self {
             chain_id,
             pow_target,
             blocks: vec![genesis],
+            block_index,
+            canonical_tip: genesis_hash,
             state: initia_state,
         })
     }
@@ -69,9 +111,15 @@ impl Blockchain {
     }
 
     pub fn tip(&self) -> &Block {
-        self.blocks
-            .last()
-            .expect("blockchain always contains genesis")
+        &self
+            .block_index
+            .get(&self.canonical_tip)
+            .expect("canonical tip is always indexed")
+            .block
+    }
+
+    pub const fn canonical_tip_hash(&self) -> BlockHash {
+        self.canonical_tip
     }
 
     pub fn block_count(&self) -> usize {
@@ -82,7 +130,31 @@ impl Blockchain {
         &self.blocks
     }
 
-    fn validate_candidate(&self, block: &Block) -> Result<(), ChainError> {
+    pub fn indexed_block_count(&self) -> usize {
+        self.block_index.len()
+    }
+
+    pub fn block(&self, hash: &BlockHash) -> Option<&Block> {
+        self.block_index.get(hash).map(|entry| &entry.block)
+    }
+
+    pub fn metadata(&self, hash: &BlockHash) -> Option<&BlockMetadata> {
+        self.block_index.get(hash).map(|entry| &entry.metadata)
+    }
+
+    pub fn state_at(&self, hash: &BlockHash) -> Option<&State> {
+        self.block_index.get(hash).map(|entry| &entry.state)
+    }
+
+    pub fn indexed_blocks(
+        &self,
+    ) -> impl Iterator<Item = (BlockHash, &Block, &BlockMetadata, &State)> {
+        self.block_index
+            .iter()
+            .map(|(hash, entry)| (*hash, &entry.block, &entry.metadata, &entry.state))
+    }
+
+    fn validate_candidate(&self, block: &Block, parent: &BlockMetadata) -> Result<(), ChainError> {
         if block.header().version() != BlockVersion::V1 {
             return Err(ChainError::UnsupportedBlockVersion);
         }
@@ -91,21 +163,13 @@ impl Blockchain {
             return Err(ChainError::WrongChainId);
         }
 
-        let expected_height = self
-            .tip()
-            .header()
+        let expected_height = parent
             .height()
             .checked_increment()
             .ok_or(ChainError::HeightOverflow)?;
 
         if block.header().height() != expected_height {
             return Err(ChainError::InvalidHeight);
-        }
-
-        let expected_previous_hash = block_hash(self.tip().header());
-
-        if block.header().previous_block_hash() != expected_previous_hash {
-            return Err(ChainError::InvalidPreviousBlockHash);
         }
 
         let expected_merkle_root = merkle_root(block.transactions());
@@ -132,20 +196,81 @@ impl Blockchain {
     }
 
     pub fn append_block(&mut self, block: Block) -> Result<BlockHash, ChainError> {
-        self.validate_candidate(&block)?;
+        let parent_hash = block.header().previous_block_hash();
+        let parent = self
+            .block_index
+            .get(&parent_hash)
+            .ok_or(ChainError::InvalidPreviousBlockHash)?;
+        let parent_metadata = parent.metadata;
+        let mut next_state = parent.state.clone();
 
-        let mut next_state = self.state.clone();
+        self.validate_candidate(&block, &parent_metadata)?;
+
+        let cumulative_work = next_chain_work(parent_metadata.cumulative_work())?;
 
         for tx in block.transactions() {
             next_state.apply_transaction(tx)?;
         }
 
+        if block.header().state_root() != next_state.state_root() {
+            return Err(ChainError::InvalidStateRoot);
+        }
+
         let hash = block_hash(block.header());
+        let metadata = BlockMetadata::new(parent_hash, block.header().height(), cumulative_work);
+        let current_tip_metadata = self
+            .block_index
+            .get(&self.canonical_tip)
+            .expect("canonical tip is always indexed")
+            .metadata;
+        let becomes_canonical = candidate_is_better(&current_tip_metadata, &metadata);
 
-        self.state = next_state;
+        self.block_index.insert(
+            hash,
+            IndexedBlock {
+                block,
+                metadata,
+                state: next_state.clone(),
+            },
+        );
 
-        self.blocks.push(block);
+        if becomes_canonical {
+            self.canonical_tip = hash;
+            self.state = next_state;
+            self.rebuild_canonical_blocks();
+        }
 
         Ok(hash)
+    }
+
+    fn rebuild_canonical_blocks(&mut self) {
+        let mut hashes = Vec::new();
+        let mut hash = self.canonical_tip;
+
+        loop {
+            hashes.push(hash);
+            let entry = self
+                .block_index
+                .get(&hash)
+                .expect("canonical ancestors are always indexed");
+
+            if entry.metadata.height() == BlockHeight::ZERO {
+                break;
+            }
+
+            hash = entry.metadata.parent();
+        }
+
+        hashes.reverse();
+        self.blocks = hashes
+            .into_iter()
+            .map(|hash| {
+                self.block_index
+                    .get(&hash)
+                    .expect("canonical blocks are always indexed")
+                    .block
+                    .clone()
+            })
+            .collect();
     }
 }

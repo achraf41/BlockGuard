@@ -8,8 +8,9 @@ pub const BLOCK_HEADER_ENCODING_LENGTH: usize = BLOCK_HEADER_DOMAIN.len()
         + 8  // height
         + 32 // previous_block_hash
         + 32 // transactions_root
-        + 8  // pow nonce
-        + 8; // timestamp
+        + 32 // state_root
+        + 8  // timestamp
+        + 8; // pow nonce
 
 pub fn encode_block_header_for_hash(header: &BlockHeader) -> [u8; BLOCK_HEADER_ENCODING_LENGTH] {
     let mut output = [0u8; BLOCK_HEADER_ENCODING_LENGTH];
@@ -42,6 +43,10 @@ pub fn encode_block_header_for_hash(header: &BlockHeader) -> [u8; BLOCK_HEADER_E
     let transaction_root = header.transaction_root();
 
     write_bytes(&mut output, &mut offset, transaction_root.as_bytes());
+
+    let state_root = header.state_root();
+
+    write_bytes(&mut output, &mut offset, state_root.as_bytes());
 
     write_bytes(
         &mut output,

@@ -1,0 +1,12 @@
+[package]
+name = "blockguard-mempool"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+blockguard-core.workspace = true
+blockguard-crypto.workspace = true
+blockguard-state.workspace = true
+
+[dev-dependencies]
+k256.workspace = true

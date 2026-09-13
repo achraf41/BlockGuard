@@ -1,0 +1,16 @@
+[package]
+name = "blockguard-node"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+blockguard-chain.workspace = true
+blockguard-consensus.workspace = true
+blockguard-core.workspace = true
+blockguard-crypto.workspace = true
+blockguard-mempool.workspace = true
+blockguard-state.workspace = true
+blockguard-storage.workspace = true
+
+[dev-dependencies]
+k256.workspace = true

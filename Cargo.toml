@@ -7,6 +7,9 @@ members = ["crates/blockguard-chain",
     "crates/blockguard-state",
     "crates/blockguard-chain", 
     "crates/blockguard-consensus",
+    "crates/blockguard-storage",
+    "crates/blockguard-mempool",
+    "crates/blockguard-node",
 ]
 
 [workspace.package]
@@ -19,5 +22,8 @@ blockguard-crypto = { path = "crates/blockguard-crypto" }
 blockguard-state = { path = "crates/blockguard-state" }
 blockguard-chain = { path = "crates/blockguard-chain" }
 blockguard-consensus = { path = "crates/blockguard-consensus" }
+blockguard-storage = { path = "crates/blockguard-storage" }
+blockguard-mempool = { path = "crates/blockguard-mempool" }
+blockguard-node = { path = "crates/blockguard-node" }
 sha2 = "0.11"
 k256 = { version = "0.14", features = ["ecdsa", "sha256", "getrandom"] }

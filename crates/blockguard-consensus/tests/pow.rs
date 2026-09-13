@@ -2,7 +2,7 @@ use blockguard_consensus::{mine_header, validate_pow};
 
 use blockguard_core::{
     BlockHash, BlockHeader, BlockHeight, BlockTimestamp, BlockVersion, ChainId, MerkleRoot,
-    PowNonce, PowTarget,
+    PowNonce, PowTarget, StateRoot,
 };
 
 fn test_target() -> PowTarget {
@@ -21,6 +21,7 @@ fn mining_produces_valid_proof_of_work() {
         BlockHeight::new(1),
         BlockHash::ZERO,
         MerkleRoot::ZERO,
+        StateRoot::ZERO,
         BlockTimestamp::new(1_700_000_000),
         PowNonce::ZERO,
     );

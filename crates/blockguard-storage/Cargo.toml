@@ -1,0 +1,13 @@
+[package]
+name = "blockguard-storage"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+blockguard-chain.workspace = true
+blockguard-core.workspace = true
+blockguard-crypto.workspace = true
+blockguard-state.workspace = true
+
+[dev-dependencies]
+blockguard-consensus.workspace = true

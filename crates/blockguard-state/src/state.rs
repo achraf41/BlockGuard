@@ -1,8 +1,13 @@
 use std::collections::HashMap;
 
-use blockguard_core::{Address, Amount, Nonce};
+use blockguard_core::{Address, Amount, Nonce, StateRoot};
+use blockguard_crypto::sha256;
 
 use crate::{Account, StateError};
+
+const STATE_DOMAIN: &[u8] = b"BLOCKGUARD_STATE_V1";
+const ACCOUNT_COUNT_LENGTH: usize = 8;
+const ENCODED_ACCOUNT_LENGTH: usize = Address::LENGTH + 8 + 8;
 
 #[derive(Debug, Clone, Default)]
 pub struct State {
@@ -40,5 +45,30 @@ impl State {
             .get(address)
             .map(Account::nonce)
             .ok_or(StateError::AccountNotFound)
+    }
+
+    pub fn accounts(&self) -> impl Iterator<Item = (&Address, &Account)> {
+        self.accounts.iter()
+    }
+
+    pub fn state_root(&self) -> StateRoot {
+        let mut accounts: Vec<_> = self.accounts.iter().collect();
+
+        accounts.sort_unstable_by_key(|(address, _)| address.as_bytes());
+
+        let mut encoded = Vec::with_capacity(
+            STATE_DOMAIN.len() + ACCOUNT_COUNT_LENGTH + accounts.len() * ENCODED_ACCOUNT_LENGTH,
+        );
+
+        encoded.extend_from_slice(STATE_DOMAIN);
+        encoded.extend_from_slice(&(accounts.len() as u64).to_be_bytes());
+
+        for (address, account) in accounts {
+            encoded.extend_from_slice(address.as_bytes());
+            encoded.extend_from_slice(&account.balance().value().to_be_bytes());
+            encoded.extend_from_slice(&account.nonce().as_u64().to_be_bytes());
+        }
+
+        StateRoot::from_hash(sha256(&encoded))
     }
 }

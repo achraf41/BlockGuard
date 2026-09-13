@@ -12,6 +12,7 @@ mod pow_nonce;
 mod pow_target;
 mod public_key;
 mod signature;
+mod state_root;
 mod transaction_id;
 mod version;
 
@@ -29,5 +30,6 @@ pub use pow_nonce::PowNonce;
 pub use pow_target::PowTarget;
 pub use public_key::PublicKeyBytes;
 pub use signature::SignatureBytes;
+pub use state_root::StateRoot;
 pub use transaction_id::TransactionId;
 pub use version::TransactionVersion;

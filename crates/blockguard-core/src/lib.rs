@@ -11,6 +11,6 @@ pub use encoding::{
 pub use transaction::{SignedTransaction, UnsignedTransaction};
 pub use types::{
     Address, Amount, BlockHash, BlockHeight, BlockTimestamp, BlockVersion, ChainId, Hash256,
-    MerkleRoot, Nonce, PowNonce, PowTarget, PublicKeyBytes, SignatureBytes, TransactionId,
-    TransactionVersion,
+    MerkleRoot, Nonce, PowNonce, PowTarget, PublicKeyBytes, SignatureBytes, StateRoot,
+    TransactionId, TransactionVersion,
 };

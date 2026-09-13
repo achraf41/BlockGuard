@@ -1,6 +1,6 @@
 use blockguard_core::{
     Amount, BlockHash, BlockHeader, BlockHeight, BlockTimestamp, BlockVersion, ChainId, Nonce,
-    PowNonce, SignedTransaction, TransactionVersion, UnsignedTransaction,
+    PowNonce, SignedTransaction, StateRoot, TransactionVersion, UnsignedTransaction,
 };
 
 use blockguard_crypto::{KeyPair, block_hash, derive_address, merkle_root, sign_transaction};
@@ -116,6 +116,7 @@ fn block_hash_is_deterministic() {
         BlockHeight::new(1),
         BlockHash::ZERO,
         root,
+        StateRoot::ZERO,
         BlockTimestamp::new(1_700_000_000),
         PowNonce::ZERO,
     );
@@ -137,6 +138,7 @@ fn changing_header_changes_block_hash() {
         BlockHeight::new(1),
         BlockHash::ZERO,
         empty_root,
+        StateRoot::ZERO,
         BlockTimestamp::new(1_700_000_000),
         PowNonce::ZERO,
     );
@@ -147,9 +149,39 @@ fn changing_header_changes_block_hash() {
         BlockHeight::new(1),
         BlockHash::ZERO,
         empty_root,
+        StateRoot::ZERO,
         BlockTimestamp::new(1_700_000_001),
         PowNonce::ZERO,
     );
 
     assert_ne!(block_hash(&header1), block_hash(&header2),);
+}
+
+#[test]
+fn changing_state_root_changes_block_hash() {
+    let empty_root = merkle_root(&[]);
+    let first_state_root = StateRoot::from_hash(blockguard_core::Hash256::from_bytes([1; 32]));
+    let second_state_root = StateRoot::from_hash(blockguard_core::Hash256::from_bytes([2; 32]));
+    let header1 = BlockHeader::new(
+        BlockVersion::V1,
+        ChainId::new(1),
+        BlockHeight::new(1),
+        BlockHash::ZERO,
+        empty_root,
+        first_state_root,
+        BlockTimestamp::new(1_700_000_000),
+        PowNonce::ZERO,
+    );
+    let header2 = BlockHeader::new(
+        BlockVersion::V1,
+        ChainId::new(1),
+        BlockHeight::new(1),
+        BlockHash::ZERO,
+        empty_root,
+        second_state_root,
+        BlockTimestamp::new(1_700_000_000),
+        PowNonce::ZERO,
+    );
+
+    assert_ne!(block_hash(&header1), block_hash(&header2));
 }

@@ -15,9 +15,11 @@ pub enum ChainError {
     InvalidHeight,
     InvalidPreviousBlockHash,
     InvalidMerkleRoot,
+    InvalidStateRoot,
     InvalidProofOfWork,
 
     HeightOverflow,
+    ChainWorkOverflow,
 
     State(StateError),
 }
@@ -61,12 +63,20 @@ impl fmt::Display for ChainError {
                 write!(f, "invalid transaction Merkle root")
             }
 
+            Self::InvalidStateRoot => {
+                write!(f, "invalid state root")
+            }
+
             Self::HeightOverflow => {
                 write!(f, "block height overflow")
             }
 
             Self::InvalidProofOfWork => {
                 write!(f, "invalid proof of work")
+            }
+
+            Self::ChainWorkOverflow => {
+                write!(f, "cumulative chain work overflow")
             }
 
             Self::State(error) => {
