@@ -9,7 +9,9 @@ use blockguard_crypto::{block_hash, merkle_root};
 use crate::{
     BlockMetadata, ChainError, ChainWork, GenesisConfig, candidate_is_better, next_chain_work,
 };
-use blockguard_consensus::validate_pow;
+use blockguard_consensus::{
+    DIFFICULTY_ADJUSTMENT_INTERVAL, adjusted_target, target_work, validate_pow,
+};
 use blockguard_state::State;
 
 #[derive(Debug, Clone)]
@@ -74,6 +76,10 @@ impl Blockchain {
             return Err(ChainError::InvalidStateRoot);
         }
 
+        if genesis.header().pow_target() != pow_target {
+            return Err(ChainError::UnexpectedPowTarget);
+        }
+
         let genesis_hash = block_hash(genesis.header());
         let genesis_metadata =
             BlockMetadata::new(BlockHash::ZERO, BlockHeight::ZERO, ChainWork::ZERO);
@@ -104,6 +110,44 @@ impl Blockchain {
 
     pub const fn pow_target(&self) -> PowTarget {
         self.pow_target
+    }
+
+    pub fn next_pow_target(&self) -> Result<PowTarget, ChainError> {
+        self.next_pow_target_after(self.canonical_tip)
+    }
+
+    pub fn next_pow_target_after(&self, parent_hash: BlockHash) -> Result<PowTarget, ChainError> {
+        let parent = self
+            .block_index
+            .get(&parent_hash)
+            .ok_or(ChainError::InvalidPreviousBlockHash)?;
+        let next_height = parent
+            .metadata
+            .height()
+            .checked_increment()
+            .ok_or(ChainError::HeightOverflow)?;
+        if next_height.value() % DIFFICULTY_ADJUSTMENT_INTERVAL != 0 {
+            return Ok(parent.block.header().pow_target());
+        }
+        let ancestor_height = next_height.value() - DIFFICULTY_ADJUSTMENT_INTERVAL;
+        let mut ancestor = parent;
+        while ancestor.metadata.height().value() > ancestor_height {
+            ancestor = self
+                .block_index
+                .get(&ancestor.metadata.parent())
+                .expect("indexed ancestry is complete");
+        }
+        let actual = parent
+            .block
+            .header()
+            .timestamp()
+            .value()
+            .saturating_sub(ancestor.block.header().timestamp().value());
+        Ok(adjusted_target(
+            parent.block.header().pow_target(),
+            actual,
+            self.pow_target,
+        ))
     }
 
     pub fn state(&self) -> &State {
@@ -154,7 +198,12 @@ impl Blockchain {
             .map(|(hash, entry)| (*hash, &entry.block, &entry.metadata, &entry.state))
     }
 
-    fn validate_candidate(&self, block: &Block, parent: &BlockMetadata) -> Result<(), ChainError> {
+    fn validate_candidate(
+        &self,
+        block: &Block,
+        parent_hash: BlockHash,
+        parent: &IndexedBlock,
+    ) -> Result<(), ChainError> {
         if block.header().version() != BlockVersion::V1 {
             return Err(ChainError::UnsupportedBlockVersion);
         }
@@ -164,12 +213,20 @@ impl Blockchain {
         }
 
         let expected_height = parent
+            .metadata
             .height()
             .checked_increment()
             .ok_or(ChainError::HeightOverflow)?;
 
         if block.header().height() != expected_height {
             return Err(ChainError::InvalidHeight);
+        }
+
+        if block.header().timestamp() <= parent.block.header().timestamp() {
+            return Err(ChainError::InvalidBlockTimestamp);
+        }
+        if block.header().pow_target() != self.next_pow_target_after(parent_hash)? {
+            return Err(ChainError::UnexpectedPowTarget);
         }
 
         let expected_merkle_root = merkle_root(block.transactions());
@@ -188,7 +245,7 @@ impl Blockchain {
             }
         }
 
-        if !validate_pow(block.header(), &self.pow_target) {
+        if !validate_pow(block.header()) {
             return Err(ChainError::InvalidProofOfWork);
         }
 
@@ -204,9 +261,12 @@ impl Blockchain {
         let parent_metadata = parent.metadata;
         let mut next_state = parent.state.clone();
 
-        self.validate_candidate(&block, &parent_metadata)?;
+        self.validate_candidate(&block, parent_hash, parent)?;
 
-        let cumulative_work = next_chain_work(parent_metadata.cumulative_work())?;
+        let cumulative_work = next_chain_work(
+            parent_metadata.cumulative_work(),
+            target_work(block.header().pow_target()),
+        )?;
 
         for tx in block.transactions() {
             next_state.apply_transaction(tx)?;

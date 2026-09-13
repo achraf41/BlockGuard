@@ -1,5 +1,6 @@
 use crate::types::{
-    BlockHash, BlockHeight, BlockTimestamp, BlockVersion, ChainId, MerkleRoot, PowNonce, StateRoot,
+    BlockHash, BlockHeight, BlockTimestamp, BlockVersion, ChainId, MerkleRoot, PowNonce, PowTarget,
+    StateRoot,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -10,6 +11,7 @@ pub struct BlockHeader {
     previous_block_hash: BlockHash,
     transaction_root: MerkleRoot,
     state_root: StateRoot,
+    pow_target: PowTarget,
     timestamp: BlockTimestamp,
     pow_nonce: PowNonce,
 }
@@ -22,6 +24,7 @@ impl BlockHeader {
         previous_block_hash: BlockHash,
         transaction_root: MerkleRoot,
         state_root: StateRoot,
+        pow_target: PowTarget,
         timestamp: BlockTimestamp,
         pow_nonce: PowNonce,
     ) -> Self {
@@ -32,6 +35,7 @@ impl BlockHeader {
             previous_block_hash,
             transaction_root,
             state_root,
+            pow_target,
             timestamp,
             pow_nonce,
         }
@@ -59,6 +63,10 @@ impl BlockHeader {
 
     pub const fn state_root(&self) -> StateRoot {
         self.state_root
+    }
+
+    pub const fn pow_target(&self) -> PowTarget {
+        self.pow_target
     }
 
     pub const fn timestamp(&self) -> BlockTimestamp {

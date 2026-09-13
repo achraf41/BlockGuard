@@ -65,6 +65,7 @@ fn external(
         block_hash(parent.header()),
         merkle_root(&transactions),
         next.state_root(),
+        parent.header().pow_target(),
         BlockTimestamp::new(timestamp),
         PowNonce::ZERO,
     );
@@ -93,7 +94,7 @@ fn produced_block_has_valid_commitments_and_pow_and_updates_state() {
     node.submit_transaction(transfer(&key(1), address(&key(3)), 10, 0))
         .unwrap();
     let block = node.produce_block(BlockTimestamp::new(101), 10).unwrap();
-    assert!(validate_pow(block.header(), &PowTarget::MAX));
+    assert!(validate_pow(block.header()));
     assert_eq!(
         block.header().transaction_root(),
         merkle_root(block.transactions())
@@ -248,4 +249,21 @@ fn canonical_reorg_drops_transactions_made_stale_by_winning_branch() {
         Nonce::new(2)
     );
     assert!(!node.mempool().contains(&queued_id));
+}
+
+#[test]
+fn produced_blocks_follow_adjusted_chain_target() {
+    let mut node = Node::new(config(), None).unwrap();
+    for timestamp in 101..=110 {
+        let expected = node.blockchain().next_pow_target().unwrap();
+        let block = node
+            .produce_block(BlockTimestamp::new(timestamp), 0)
+            .unwrap();
+        assert_eq!(block.header().pow_target(), expected);
+        assert!(validate_pow(block.header()));
+    }
+    assert_ne!(
+        node.blockchain().tip().header().pow_target(),
+        PowTarget::MAX
+    );
 }

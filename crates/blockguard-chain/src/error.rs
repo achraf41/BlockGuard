@@ -17,6 +17,8 @@ pub enum ChainError {
     InvalidMerkleRoot,
     InvalidStateRoot,
     InvalidProofOfWork,
+    UnexpectedPowTarget,
+    InvalidBlockTimestamp,
 
     HeightOverflow,
     ChainWorkOverflow,
@@ -73,6 +75,10 @@ impl fmt::Display for ChainError {
 
             Self::InvalidProofOfWork => {
                 write!(f, "invalid proof of work")
+            }
+            Self::UnexpectedPowTarget => write!(f, "block uses an unexpected proof-of-work target"),
+            Self::InvalidBlockTimestamp => {
+                write!(f, "block timestamp must be greater than its parent")
             }
 
             Self::ChainWorkOverflow => {

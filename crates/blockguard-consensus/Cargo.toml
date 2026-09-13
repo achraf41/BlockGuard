@@ -6,3 +6,4 @@ version.workspace = true
 [dependencies]
 blockguard-core.workspace = true
 blockguard-crypto.workspace = true
+primitive-types.workspace = true

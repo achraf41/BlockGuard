@@ -9,6 +9,7 @@ pub const BLOCK_HEADER_ENCODING_LENGTH: usize = BLOCK_HEADER_DOMAIN.len()
         + 32 // previous_block_hash
         + 32 // transactions_root
         + 32 // state_root
+        + 32 // pow_target
         + 8  // timestamp
         + 8; // pow nonce
 
@@ -48,6 +49,8 @@ pub fn encode_block_header_for_hash(header: &BlockHeader) -> [u8; BLOCK_HEADER_E
 
     write_bytes(&mut output, &mut offset, state_root.as_bytes());
 
+    write_bytes(&mut output, &mut offset, header.pow_target().as_bytes());
+
     write_bytes(
         &mut output,
         &mut offset,
@@ -71,4 +74,33 @@ fn write_bytes(output: &mut [u8], offset: &mut usize, bytes: &[u8]) {
     output[*offset..end].copy_from_slice(bytes);
 
     *offset = end;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        BlockHash, BlockHeight, BlockTimestamp, BlockVersion, ChainId, MerkleRoot, PowNonce,
+        PowTarget, StateRoot,
+    };
+
+    #[test]
+    fn canonical_header_encoding_is_177_bytes_and_commits_target() {
+        let target = PowTarget::from_bytes([0x5a; 32]);
+        let header = BlockHeader::new(
+            BlockVersion::V1,
+            ChainId::new(1),
+            BlockHeight::new(2),
+            BlockHash::ZERO,
+            MerkleRoot::ZERO,
+            StateRoot::ZERO,
+            target,
+            BlockTimestamp::new(3),
+            PowNonce::new(4),
+        );
+        let encoded = encode_block_header_for_hash(&header);
+        assert_eq!(BLOCK_HEADER_DOMAIN.len(), 19);
+        assert_eq!(BLOCK_HEADER_ENCODING_LENGTH, 177);
+        assert_eq!(&encoded[129..161], target.as_bytes());
+    }
 }

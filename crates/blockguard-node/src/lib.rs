@@ -140,10 +140,12 @@ impl Node {
             self.blockchain.canonical_tip_hash(),
             merkle_root(&transactions),
             next_state.state_root(),
+            self.blockchain.next_pow_target()?,
             timestamp,
             PowNonce::ZERO,
         );
-        let (header, _) = mine_header(header, &self.blockchain.pow_target())?;
+        let target = header.pow_target();
+        let (header, _) = mine_header(header, &target)?;
         let block = Block::new(header, transactions);
         self.accept_block(block.clone())?;
         Ok(block)

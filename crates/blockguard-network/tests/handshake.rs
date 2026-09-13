@@ -52,9 +52,9 @@ fn different_genesis_is_rejected() {
 fn unsupported_handshake_version_is_rejected() {
     let good = Handshake::new(ChainId::new(1), hash(1), [1; 16]);
     let mut bad = good.clone();
-    bad.protocol_version = 2;
+    bad.protocol_version = 1;
     assert!(matches!(
         blockguard_network::validate_handshake(&good, &bad),
-        Err(NetworkError::UnsupportedVersion(2))
+        Err(NetworkError::UnsupportedVersion(1))
     ))
 }

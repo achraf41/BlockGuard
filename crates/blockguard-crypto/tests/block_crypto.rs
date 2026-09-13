@@ -1,6 +1,6 @@
 use blockguard_core::{
     Amount, BlockHash, BlockHeader, BlockHeight, BlockTimestamp, BlockVersion, ChainId, Nonce,
-    PowNonce, SignedTransaction, StateRoot, TransactionVersion, UnsignedTransaction,
+    PowNonce, PowTarget, SignedTransaction, StateRoot, TransactionVersion, UnsignedTransaction,
 };
 
 use blockguard_crypto::{KeyPair, block_hash, derive_address, merkle_root, sign_transaction};
@@ -117,6 +117,7 @@ fn block_hash_is_deterministic() {
         BlockHash::ZERO,
         root,
         StateRoot::ZERO,
+        PowTarget::MAX,
         BlockTimestamp::new(1_700_000_000),
         PowNonce::ZERO,
     );
@@ -139,6 +140,7 @@ fn changing_header_changes_block_hash() {
         BlockHash::ZERO,
         empty_root,
         StateRoot::ZERO,
+        PowTarget::MAX,
         BlockTimestamp::new(1_700_000_000),
         PowNonce::ZERO,
     );
@@ -150,6 +152,7 @@ fn changing_header_changes_block_hash() {
         BlockHash::ZERO,
         empty_root,
         StateRoot::ZERO,
+        PowTarget::MAX,
         BlockTimestamp::new(1_700_000_001),
         PowNonce::ZERO,
     );
@@ -169,6 +172,7 @@ fn changing_state_root_changes_block_hash() {
         BlockHash::ZERO,
         empty_root,
         first_state_root,
+        PowTarget::MAX,
         BlockTimestamp::new(1_700_000_000),
         PowNonce::ZERO,
     );
@@ -179,9 +183,38 @@ fn changing_state_root_changes_block_hash() {
         BlockHash::ZERO,
         empty_root,
         second_state_root,
+        PowTarget::MAX,
         BlockTimestamp::new(1_700_000_000),
         PowNonce::ZERO,
     );
 
     assert_ne!(block_hash(&header1), block_hash(&header2));
+}
+
+#[test]
+fn changing_only_pow_target_changes_block_hash() {
+    let root = merkle_root(&[]);
+    let first = BlockHeader::new(
+        BlockVersion::V1,
+        ChainId::new(1),
+        BlockHeight::new(1),
+        BlockHash::ZERO,
+        root,
+        StateRoot::ZERO,
+        PowTarget::MAX,
+        BlockTimestamp::new(1),
+        PowNonce::ZERO,
+    );
+    let second = BlockHeader::new(
+        BlockVersion::V1,
+        ChainId::new(1),
+        BlockHeight::new(1),
+        BlockHash::ZERO,
+        root,
+        StateRoot::ZERO,
+        PowTarget::from_bytes([0x7f; 32]),
+        BlockTimestamp::new(1),
+        PowNonce::ZERO,
+    );
+    assert_ne!(block_hash(&first), block_hash(&second));
 }

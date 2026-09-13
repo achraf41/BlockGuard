@@ -1,31 +1,30 @@
 use crate::ChainError;
+use blockguard_consensus::PowWork;
+use primitive_types::U256;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ChainWork(u64);
+pub struct ChainWork([u8; 32]);
 
 impl ChainWork {
-    pub const ZERO: Self = Self(0);
-
-    pub const ONE: Self = Self(1);
-
-    pub const fn new(value: u64) -> Self {
-        Self(value)
+    pub const ZERO: Self = Self([0; 32]);
+    pub const fn from_bytes(bytes: [u8; 32]) -> Self {
+        Self(bytes)
     }
-
-    pub const fn value(self) -> u64 {
-        self.0
+    pub const fn as_bytes(&self) -> &[u8; 32] {
+        &self.0
     }
-
-    pub const fn checked_add(self, rhs: Self) -> Option<Self> {
-        match self.0.checked_add(rhs.0) {
-            Some(value) => Some(Self(value)),
-            None => None,
-        }
+    pub fn from_u64(value: u64) -> Self {
+        Self(U256::from(value).to_big_endian())
+    }
+    pub fn checked_add_work(self, rhs: PowWork) -> Option<Self> {
+        U256::from_big_endian(&self.0)
+            .checked_add(U256::from_big_endian(rhs.as_bytes()))
+            .map(|value| Self(value.to_big_endian()))
     }
 }
 
-pub fn next_chain_work(parent_work: ChainWork) -> Result<ChainWork, ChainError> {
-    parent_work
-        .checked_add(ChainWork::ONE)
+pub fn next_chain_work(parent: ChainWork, block_work: PowWork) -> Result<ChainWork, ChainError> {
+    parent
+        .checked_add_work(block_work)
         .ok_or(ChainError::ChainWorkOverflow)
 }

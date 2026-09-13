@@ -19,8 +19,8 @@ use blockguard_core::{
 use blockguard_crypto::block_hash;
 use blockguard_state::{Account, State};
 
-const MAGIC: &[u8; 8] = b"BGSTORE1";
-const STORAGE_VERSION: u16 = 1;
+const MAGIC: &[u8; 8] = b"BGSTORE2";
+const STORAGE_VERSION: u16 = 2;
 
 #[derive(Debug)]
 pub enum StorageError {
@@ -165,7 +165,7 @@ fn encode(config: &GenesisConfig, chain: &Blockchain) -> Vec<u8> {
         put_block(&mut out, block);
         out.extend_from_slice(metadata.parent().as_bytes());
         put_u64(&mut out, metadata.height().value());
-        put_u64(&mut out, metadata.cumulative_work().value());
+        out.extend_from_slice(metadata.cumulative_work().as_bytes());
         put_state(&mut out, state);
     }
     out
@@ -173,7 +173,11 @@ fn encode(config: &GenesisConfig, chain: &Blockchain) -> Vec<u8> {
 
 fn decode_and_validate(bytes: &[u8]) -> Result<LoadedBlockchain, StorageError> {
     let mut input = Decoder::new(bytes);
-    if input.take(8)? != MAGIC {
+    let magic = input.take(8)?;
+    if magic == b"BGSTORE1" {
+        return Err(StorageError::InvalidData("unsupported version"));
+    }
+    if magic != MAGIC {
         return Err(StorageError::InvalidData("wrong magic"));
     }
     if input.u16()? != STORAGE_VERSION {
@@ -209,7 +213,7 @@ fn decode_and_validate(bytes: &[u8]) -> Result<LoadedBlockchain, StorageError> {
         let metadata = BlockMetadata::new(
             parent,
             BlockHeight::new(input.u64()?),
-            ChainWork::new(input.u64()?),
+            ChainWork::from_bytes(input.array()?),
         );
         let state = input.state()?;
         if state.state_root() != block.header().state_root() {
@@ -366,6 +370,7 @@ fn put_block(out: &mut Vec<u8>, block: &Block) {
     out.extend_from_slice(header.previous_block_hash().as_bytes());
     out.extend_from_slice(header.transaction_root().as_bytes());
     out.extend_from_slice(header.state_root().as_bytes());
+    out.extend_from_slice(header.pow_target().as_bytes());
     put_u64(out, header.timestamp().value());
     put_u64(out, header.pow_nonce().value());
     put_u64(out, block.transactions().len() as u64);
@@ -446,6 +451,7 @@ impl<'a> Decoder<'a> {
         let previous = BlockHash::from_hash(Hash256::from_bytes(self.array()?));
         let merkle = MerkleRoot::from_hash(Hash256::from_bytes(self.array()?));
         let state_root = StateRoot::from_hash(Hash256::from_bytes(self.array()?));
+        let pow_target = PowTarget::from_bytes(self.array()?);
         let timestamp = BlockTimestamp::new(self.u64()?);
         let pow_nonce = PowNonce::new(self.u64()?);
         let transaction_count = self.count()?;
@@ -466,7 +472,8 @@ impl<'a> Decoder<'a> {
         }
         Ok(Block::new(
             BlockHeader::new(
-                version, chain_id, height, previous, merkle, state_root, timestamp, pow_nonce,
+                version, chain_id, height, previous, merkle, state_root, pow_target, timestamp,
+                pow_nonce,
             ),
             transactions,
         ))

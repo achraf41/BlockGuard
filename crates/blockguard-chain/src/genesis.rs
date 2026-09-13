@@ -120,6 +120,7 @@ impl GenesisConfig {
             BlockHash::ZERO,
             merkle_root(&transactions),
             self.state_root(),
+            self.pow_target,
             self.timestamp,
             PowNonce::ZERO,
         );

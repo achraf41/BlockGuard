@@ -84,6 +84,7 @@ fn external(
         block_hash(parent.header()),
         merkle_root(&transactions),
         next.state_root(),
+        parent.header().pow_target(),
         BlockTimestamp::new(timestamp),
         PowNonce::ZERO,
     );
@@ -175,6 +176,7 @@ fn invalid_peer_block_leaves_chain_unchanged() {
         block_hash(parent.header()),
         merkle_root(&[]),
         StateRoot::ZERO,
+        parent.header().pow_target(),
         BlockTimestamp::new(101),
         PowNonce::ZERO,
     );
@@ -190,7 +192,7 @@ fn invalid_peer_block_leaves_chain_unchanged() {
 #[test]
 fn behind_node_downloads_and_validates_missing_blocks() {
     let a = bind(9);
-    for time in 101..104 {
+    for time in 101..112 {
         a.produce_block(BlockTimestamp::new(time), 0).unwrap();
     }
     let b = bind(10);
@@ -199,7 +201,16 @@ fn behind_node_downloads_and_validates_missing_blocks() {
         b.snapshot().unwrap().blockchain().canonical_tip_hash()
             == a.snapshot().unwrap().blockchain().canonical_tip_hash()
     });
-    assert_eq!(b.snapshot().unwrap().blockchain().block_count(), 4);
+    assert_eq!(b.snapshot().unwrap().blockchain().block_count(), 12);
+    assert_ne!(
+        b.snapshot()
+            .unwrap()
+            .blockchain()
+            .tip()
+            .header()
+            .pow_target(),
+        PowTarget::MAX
+    );
 }
 
 #[test]
@@ -225,5 +236,44 @@ fn fork_propagation_obeys_existing_fork_choice() {
     assert_eq!(
         a.snapshot().unwrap().blockchain().canonical_tip_hash(),
         b.snapshot().unwrap().blockchain().canonical_tip_hash()
+    );
+}
+
+#[test]
+fn peer_cannot_forge_an_easier_target_at_adjustment() {
+    let a = bind(13);
+    let b = bind(14);
+    b.connect(a.local_addr()).unwrap();
+    wait_for(|| a.peer_count() == 1 && b.peer_count() == 1);
+    for timestamp in 101..110 {
+        a.produce_block(BlockTimestamp::new(timestamp), 0).unwrap();
+    }
+    wait_for(|| b.snapshot().unwrap().blockchain().block_count() == 10);
+    let snapshot = a.snapshot().unwrap();
+    let parent = snapshot.blockchain().tip().clone();
+    assert_ne!(
+        snapshot.blockchain().next_pow_target().unwrap(),
+        PowTarget::MAX
+    );
+    let transactions = vec![];
+    let header = BlockHeader::new(
+        BlockVersion::V1,
+        ChainId::new(1),
+        parent.header().height().checked_increment().unwrap(),
+        block_hash(parent.header()),
+        merkle_root(&transactions),
+        snapshot.blockchain().state().state_root(),
+        PowTarget::MAX,
+        BlockTimestamp::new(110),
+        PowNonce::ZERO,
+    );
+    let (header, _) = mine_header(header, &PowTarget::MAX).unwrap();
+    let forged = Block::new(header, transactions);
+    let before = b.snapshot().unwrap().blockchain().canonical_tip_hash();
+    a.send_to_all(&Message::Block(forged));
+    thread::sleep(Duration::from_millis(100));
+    assert_eq!(
+        b.snapshot().unwrap().blockchain().canonical_tip_hash(),
+        before
     );
 }

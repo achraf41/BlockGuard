@@ -1,4 +1,4 @@
-use blockguard_chain::{Blockchain, ChainError};
+use blockguard_chain::{Blockchain, ChainError, ChainWork};
 
 use blockguard_core::{
     Amount, Block, BlockHash, BlockHeader, BlockHeight, BlockTimestamp, BlockVersion, ChainId,
@@ -42,14 +42,6 @@ fn signed_transfer(
     sign_transaction(sender, tx).unwrap()
 }
 
-fn test_pow_target() -> PowTarget {
-    let mut bytes = [0xff; 32];
-
-    bytes[0] = 0x00;
-
-    PowTarget::from_bytes(bytes)
-}
-
 fn genesis_block(initial_state: &State) -> Block {
     let transactions = Vec::new();
 
@@ -62,6 +54,7 @@ fn genesis_block(initial_state: &State) -> Block {
         BlockHash::ZERO,
         root,
         initial_state.state_root(),
+        PowTarget::MAX,
         BlockTimestamp::new(1_700_000_000),
         PowNonce::ZERO,
     );
@@ -121,6 +114,7 @@ fn block_with_state_root(
         previous_hash,
         root,
         state_root,
+        target,
         BlockTimestamp::new(timestamp),
         PowNonce::ZERO,
     );
@@ -178,12 +172,8 @@ fn two_competing_children_of_the_same_parent_are_indexed() {
         BlockHeight::new(1)
     );
     assert_eq!(
-        chain
-            .metadata(&child_a_hash)
-            .unwrap()
-            .cumulative_work()
-            .value(),
-        1
+        chain.metadata(&child_a_hash).unwrap().cumulative_work(),
+        ChainWork::from_u64(1)
     );
 }
 
@@ -397,7 +387,7 @@ fn valid_block_extends_chain_and_updates_state() {
 
     let genesis = genesis_block(&state);
 
-    let mut chain = Blockchain::new(ChainId::new(1), test_pow_target(), genesis, state).unwrap();
+    let mut chain = Blockchain::new(ChainId::new(1), PowTarget::MAX, genesis, state).unwrap();
 
     let tx = signed_transfer(&alice, bob_address, 250, 0);
 
@@ -471,6 +461,7 @@ fn genesis_with_incorrect_initial_state_root_is_rejected() {
             BlockHash::ZERO,
             merkle_root(&transactions),
             StateRoot::ZERO,
+            PowTarget::MAX,
             BlockTimestamp::new(1_700_000_000),
             PowNonce::ZERO,
         ),
@@ -503,6 +494,7 @@ fn unknown_parent_is_rejected() {
             BlockHash::ZERO,
             root,
             chain.state().state_root(),
+            PowTarget::MAX,
             BlockTimestamp::new(1_700_000_010),
             PowNonce::ZERO,
         ),

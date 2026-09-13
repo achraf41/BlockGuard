@@ -8,6 +8,7 @@ blockguard-chain.workspace = true
 blockguard-core.workspace = true
 blockguard-crypto.workspace = true
 blockguard-state.workspace = true
+primitive-types.workspace = true
 
 [dev-dependencies]
 blockguard-consensus.workspace = true

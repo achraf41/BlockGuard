@@ -1,7 +1,7 @@
 use blockguard_core::{
     Address, Amount, Block, BlockHash, BlockHeader, BlockHeight, BlockTimestamp, BlockVersion,
-    ChainId, Hash256, MerkleRoot, Nonce, PowNonce, SignatureBytes, SignedTransaction, StateRoot,
-    TransactionVersion, UnsignedTransaction,
+    ChainId, Hash256, MerkleRoot, Nonce, PowNonce, PowTarget, SignatureBytes, SignedTransaction,
+    StateRoot, TransactionVersion, UnsignedTransaction,
 };
 use blockguard_network::{
     Handshake, MAGIC, MAX_FRAME_SIZE, Message, NetworkError, PROTOCOL_VERSION, encode_frame,
@@ -31,6 +31,7 @@ fn block() -> Block {
             BlockHash::from_hash(Hash256::from_bytes([1; 32])),
             MerkleRoot::from_hash(Hash256::from_bytes([2; 32])),
             StateRoot::from_hash(Hash256::from_bytes([3; 32])),
+            PowTarget::MAX,
             BlockTimestamp::new(9),
             PowNonce::new(10),
         ),

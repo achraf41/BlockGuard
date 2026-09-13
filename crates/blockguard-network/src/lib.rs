@@ -1,6 +1,6 @@
 use blockguard_core::{
     Address, Amount, Block, BlockHash, BlockHeader, BlockHeight, BlockTimestamp, BlockVersion,
-    ChainId, Hash256, MerkleRoot, Nonce, PowNonce, PublicKeyBytes, SignatureBytes,
+    ChainId, Hash256, MerkleRoot, Nonce, PowNonce, PowTarget, PublicKeyBytes, SignatureBytes,
     SignedTransaction, StateRoot, TransactionVersion, UnsignedTransaction,
 };
 use std::{
@@ -11,7 +11,7 @@ use std::{
 };
 
 pub const MAGIC: [u8; 4] = *b"BGNW";
-pub const PROTOCOL_VERSION: u16 = 1;
+pub const PROTOCOL_VERSION: u16 = 2;
 pub const MAX_FRAME_SIZE: usize = 1024 * 1024;
 pub const MAX_BLOCK_TRANSACTIONS: usize = 4096;
 pub type NodeId = [u8; 16];
@@ -245,6 +245,7 @@ fn put_block(o: &mut Vec<u8>, b: &Block) {
     o.extend_from_slice(h.previous_block_hash().as_bytes());
     o.extend_from_slice(h.transaction_root().as_bytes());
     o.extend_from_slice(h.state_root().as_bytes());
+    o.extend_from_slice(h.pow_target().as_bytes());
     put_u64(o, h.timestamp().value());
     put_u64(o, h.pow_nonce().value());
     put_u32(o, b.transaction_count() as u32);
@@ -318,6 +319,7 @@ impl<'a> Decoder<'a> {
             BlockHash::from_hash(Hash256::from_bytes(self.array()?)),
             MerkleRoot::from_hash(Hash256::from_bytes(self.array()?)),
             StateRoot::from_hash(Hash256::from_bytes(self.array()?)),
+            PowTarget::from_bytes(self.array()?),
             BlockTimestamp::new(self.u64()?),
             PowNonce::new(self.u64()?),
         );

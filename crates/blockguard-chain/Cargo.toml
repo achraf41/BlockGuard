@@ -8,3 +8,4 @@ blockguard-core.workspace = true
 blockguard-crypto.workspace = true
 blockguard-state.workspace = true
 blockguard-consensus.workspace = true
+primitive-types.workspace = true

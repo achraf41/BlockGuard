@@ -75,6 +75,7 @@ fn block_after(
         block_hash(parent.header()),
         merkle_root(&transactions),
         state.state_root(),
+        parent.header().pow_target(),
         BlockTimestamp::new(timestamp),
         PowNonce::ZERO,
     );
@@ -193,4 +194,65 @@ fn corrupted_data_is_rejected() {
 
     assert!(load(&file).is_err());
     fs::remove_file(&file).unwrap();
+}
+
+#[test]
+fn obsolete_storage_version_is_rejected() {
+    let config = config();
+    let chain = Blockchain::from_genesis_config(&config).unwrap();
+    let file = path("old-version");
+    save(&file, &config, &chain).unwrap();
+    let mut bytes = fs::read(&file).unwrap();
+    bytes[..8].copy_from_slice(b"BGSTORE1");
+    bytes[8..10].copy_from_slice(&1u16.to_be_bytes());
+    fs::write(&file, bytes).unwrap();
+    assert!(load(&file).is_err());
+    fs::remove_file(file).unwrap();
+}
+
+#[test]
+fn round_trip_preserves_adjusted_targets_and_work() {
+    let config = config();
+    let mut chain = Blockchain::from_genesis_config(&config).unwrap();
+    for timestamp in 1_700_000_001..=1_700_000_010 {
+        let parent = chain.tip().clone();
+        let target = chain.next_pow_target().unwrap();
+        let transactions = vec![];
+        let header = BlockHeader::new(
+            BlockVersion::V1,
+            ChainId::new(1),
+            parent.header().height().checked_increment().unwrap(),
+            block_hash(parent.header()),
+            merkle_root(&transactions),
+            chain.state().state_root(),
+            target,
+            BlockTimestamp::new(timestamp),
+            PowNonce::ZERO,
+        );
+        let (header, _) = mine_header(header, &target).unwrap();
+        chain
+            .append_block(Block::new(header, transactions))
+            .unwrap();
+    }
+    let expected_target = chain.tip().header().pow_target();
+    let expected_work = chain
+        .metadata(&chain.canonical_tip_hash())
+        .unwrap()
+        .cumulative_work();
+    let file = path("difficulty");
+    save(&file, &config, &chain).unwrap();
+    let (_, restored) = load(&file).unwrap().into_parts();
+    fs::remove_file(file).unwrap();
+    assert_eq!(restored.tip().header().pow_target(), expected_target);
+    assert_eq!(
+        restored
+            .metadata(&restored.canonical_tip_hash())
+            .unwrap()
+            .cumulative_work(),
+        expected_work
+    );
+    assert_eq!(
+        restored.next_pow_target().unwrap(),
+        chain.next_pow_target().unwrap()
+    );
 }
