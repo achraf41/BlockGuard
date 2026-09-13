@@ -71,6 +71,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "blockguard-network"
+version = "0.1.0"
+dependencies = [
+ "blockguard-core",
+ "blockguard-crypto",
+ "k256",
+]
+
+[[package]]
 name = "blockguard-node"
 version = "0.1.0"
 dependencies = [
@@ -79,6 +88,7 @@ dependencies = [
  "blockguard-core",
  "blockguard-crypto",
  "blockguard-mempool",
+ "blockguard-network",
  "blockguard-state",
  "blockguard-storage",
  "k256",

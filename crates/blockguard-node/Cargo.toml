@@ -9,6 +9,7 @@ blockguard-consensus.workspace = true
 blockguard-core.workspace = true
 blockguard-crypto.workspace = true
 blockguard-mempool.workspace = true
+blockguard-network.workspace = true
 blockguard-state.workspace = true
 blockguard-storage.workspace = true
 

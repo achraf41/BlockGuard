@@ -1,0 +1,11 @@
+[package]
+name = "blockguard-network"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+blockguard-core.workspace = true
+
+[dev-dependencies]
+blockguard-crypto.workspace = true
+k256.workspace = true

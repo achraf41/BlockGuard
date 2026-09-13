@@ -15,6 +15,9 @@ use blockguard_crypto::{merkle_root, transaction_id};
 use blockguard_mempool::{Mempool, MempoolError};
 use blockguard_storage::StorageError;
 
+mod network;
+pub use network::{NetworkNode, NetworkNodeError};
+
 #[derive(Debug)]
 pub enum NodeError {
     Chain(ChainError),
